@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pablo Convert</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(to bottom, #000000, #001f3f);
+      font-family: 'Arial', sans-serif;
+      color: #0ff;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 3em;
+      margin-top: 30px;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+    }
+
+    #uploadBox {
+      margin: 60px auto;
+      width: 300px;
+      height: 200px;
+      border: 3px dashed #0ff;
+      border-radius: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      cursor: pointer;
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    #uploadBox:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    #uploadBox span {
+      font-size: 1.5em;
+      color: #fff;
+    }
+
+    #uploadBox .plus {
+      font-size: 4em;
+      color: #0ff;
+      margin-bottom: 10px;
+    }
+
+    #convertBtn {
+      margin-top: 20px;
+      padding: 15px 30px;
+      background-color: #0ff;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+    }
+
+    #convertBtn:hover {
+      background-color: #00cccc;
+    }
+
+    #progressBarContainer {
+      width: 80%;
+      margin: 30px auto;
+      background: #222;
+      border-radius: 10px;
+      height: 20px;
+      overflow: hidden;
+      display: none;
+    }
+
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00f0ff, #007eff);
+      animation: loading 2s infinite linear;
+    }
+
+    @keyframes loading {
+      0% { width: 0%; }
+      50% { width: 75%; }
+      100% { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Pablo Convert</h1>
+
+  <div id="uploadBox" onclick="document.getElementById('videoInput').click()">
+    <div class="plus">+</div>
+    <span>Importe seu vídeo</span>
+    <input type="file" id="videoInput" accept="video/*" style="display: none" />
+  </div>
+
+  <button id="convertBtn" onclick="convertToMp3()">Converter para MP3</button>
+
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
+  </div>
+
+  <!-- FFmpeg wasm -->
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+    let selectedFile;
+
+    const convertBtn = document.getElementById('convertBtn');
+    const progressBarContainer = document.getElementById('progressBarContainer');
+
+    document.getElementById('videoInput').addEventListener('change', (e) => {
+      selectedFile = e.target.files[0];
+      if (selectedFile) {
+        convertBtn.style.display = 'inline-block';
+      }
+    });
+
+    async function convertToMp3() {
+      if (!selectedFile) {
+        alert("Nenhum vídeo selecionado!");
+        return;
+      }
+
+      convertBtn.disabled = true;
+      convertBtn.textContent = 'Convertendo...';
+      progressBarContainer.style.display = 'block';
+
+      try {
+        if (!ffmpeg.isLoaded()) await ffmpeg.load();
+
+        const fileName = 'input.mp4';
+        ffmpeg.FS('writeFile', fileName, await fetchFile(selectedFile));
+
+        await ffmpeg.run('-i', fileName, '-vn', '-ar', '44100', '-ac', '2', '-b:a', '192k', 'output.mp3');
+
+        const data = ffmpeg.FS('readFile', 'output.mp3');
+        const blob = new Blob([data.buffer], { type: 'audio/mp3' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'audio.mp3';
+        a.click();
+      } catch (err) {
+        console.error('Erro ao converter:', err);
+        alert("Erro ao converter. Verifique o console para detalhes (F12).");
+      } finally {
+        convertBtn.disabled = false;
+        convertBtn.textContent = 'Converter para MP3';
+        progressBarContainer.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
